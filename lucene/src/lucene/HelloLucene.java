@@ -9,37 +9,38 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.IOContext;
+import org.apache.lucene.store.IndexInput;
+import org.wltea.analyzer.lucene.IKAnalyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 
 public class HelloLucene {
 
 	public void index() {
-		// 1.创建Director
+
 		// Directory directory = new RAMDirectory();// 创建在内存
 		Directory directory = null;
-		try {
-			directory = FSDirectory.open(Paths.get("directory"));// 创建在硬盘
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-
 		IndexWriter indexWriter = null;
 		IndexWriterConfig indexWriterConfig = new IndexWriterConfig(new StandardAnalyzer());
 		try {
+			// 1.创建Director
+			directory = FSDirectory.open(Paths.get("directory"));// 创建在硬盘
 			// 2.创建IndexWriter
 			indexWriter = new IndexWriter(directory, indexWriterConfig);
-
 			File dir = new File("txt");
 			for (File file : dir.listFiles()) {
 				// 3.创建Document
@@ -61,7 +62,7 @@ public class HelloLucene {
 		}
 	}
 
-	public void search(String keyWord) {
+	public void search(String keyWord) throws ParseException {
 
 		try {
 			// 1.创建Directory
@@ -71,9 +72,10 @@ public class HelloLucene {
 			// 3.创建IndexSearcher
 			IndexSearcher indexSearcher = new IndexSearcher(directoryReader);
 			// 4.创建搜索的Query
-			QueryParser queryParser = new QueryParser("content", new StandardAnalyzer());
+			QueryParser queryParser = new QueryParser("fileName", new StandardAnalyzer());
 			Query query = queryParser.parse(keyWord);
-
+			// Term term = new Term("fileName", keyWord);
+			// Query query = new TermQuery(term);
 			// 5、根据searcher搜索并且返回TopDocs
 			TopDocs topDocs = indexSearcher.search(query, 10);
 			System.out.println("查找到的文档总共有：" + topDocs.totalHits);
@@ -88,11 +90,37 @@ public class HelloLucene {
 				System.out.println(document.get("fileName") + " " + document.get("path"));
 			}
 			directoryReader.close();
-		} catch (ParseException e) {
-			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
+	}
+
+	public void queryNumOfDocs() {
+		try {
+			Directory directory = FSDirectory.open(Paths.get("directory"));
+			DirectoryReader directoryReader = DirectoryReader.open(directory);
+			// 通过reader可以有效的获取到文档的数量
+			System.out.println("numDocs:" + directoryReader.numDocs());
+			System.out.println("maxDocs:" + directoryReader.maxDoc());
+			System.out.println("deleteDocs:" + directoryReader.numDeletedDocs());
+			directoryReader.close();
+		} catch (CorruptIndexException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void deleteDocuments() {
+		Directory directory;
+		try {
+			directory = FSDirectory.open(Paths.get("directory"));
+			IndexWriter indexWriter = new IndexWriter(directory, new IndexWriterConfig(new StandardAnalyzer()));
+			indexWriter.deleteDocuments(new Term("fileName", "1"));
+			indexWriter.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }
